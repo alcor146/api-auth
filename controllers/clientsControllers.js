@@ -9,10 +9,13 @@ dotenv.config({ path: '.env'});
 
 
 export const register = function (req, res) {
+  console.log("THIS IS REGISTER")
   const { name, phoneNumber, email, password, passwordConfirmation } = req.body
   if (!email || !password) {
     return res.json({ status: "422", error: 'Please provide email or password' })
   }
+
+  console.log(password, passwordConfirmation)
 
   if (password != passwordConfirmation) {
     return res.json({ status: "422", error: 'Password does not match' })
@@ -47,6 +50,7 @@ export const register = function (req, res) {
 
 
 export const login = function (req, res) { 
+  console.log("THIS IS LOGIN")
   const { email, password } = req.body
 
   if (!email || !password) {
@@ -63,17 +67,14 @@ export const login = function (req, res) {
     if (!user) {
       return res.json({ status: "422", error: 'Invalid user' })
     }
-    console.log(password, user.password)
+    
 
     // var passwordIsValid = bcrypt.compareSync(
     //   password,
     //   user.password
     // );
     let passwordIsValid = (password == user.password) ? true : false
-    console.log( process.env.JWT_SECRET)
-
-
-
+ 
     if (passwordIsValid) {
       let json_token = jwt.sign(
         {
@@ -83,7 +84,7 @@ export const login = function (req, res) {
         process.env.JWT_SECRET,
         { expiresIn: '1h' })
 
-      return res.json({token: json_token})
+      return res.json({status: "200", token: json_token})
     }
     else {
       return res.json({ status: "422", error: 'Wrong email or password' })
@@ -93,16 +94,21 @@ export const login = function (req, res) {
 
 
 export const decodeToken = function (req, res) { 
+  console.log("GET TOKEN")
   let token = req.headers["x-access-token"];
   if (!token) {
-    return res.status(403).send({ message: "No token provided!" });
+    return res.send({status: "403", message: "No token provided!" });
   }
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
-      return res.status(401).send({ status: "401", message: "Unauthorized!" });
+      return res.send({ status: "401", message: "Unauthorized!" });
     }
-    console.log(decoded)
-    res.status(200).send({status: "200",token: decoded})
+    console.log(Date.now()-decoded.exp*1000)
+    if (Date.now() >= decoded.exp * 1000) {
+      res.send({status: "201", message: "token expired"})
+    }else{
+      res.send({status: "200",token: decoded})
+    }
   });
 }
 
