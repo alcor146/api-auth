@@ -8,6 +8,20 @@ import bcrypt from "bcryptjs"
 dotenv.config({ path: '.env'});
 
 
+import nodemailer from "nodemailer"
+
+var transporter = nodemailer.createTransport({
+  service: 'gmail',
+  port: 587,
+  secure: false, // use SSL
+  ignoreTLS: true, // add this 
+  auth: {
+    user: 'aurelrist@gmail.com',
+    pass: 'kyxhqgtejegteqbn'
+  }
+});
+
+
 export const register = function (req, res) {
   console.log("THIS IS REGISTER")
   const { name, phoneNumber, email, password, passwordConfirmation } = req.body
@@ -25,7 +39,7 @@ export const register = function (req, res) {
       return res.json({ status: "422", error: 'Oops! Something went Wrong' })
     }
     if (existingUser) {
-      return res.json({ status: "422", error: 'User already exists' })
+      return res.json({ status: "421", error: 'User already exists' })
     }
     else {
       const user = new Client({
@@ -63,9 +77,9 @@ export const login = function (req, res) {
         error: 'Oops! Something went wrong'
       })
     }
-
+    console.log(user)
     if (!user) {
-      return res.json({ status: "422", error: 'Invalid user' })
+      return res.json({ status: "421", error: 'Invalid user' })
     }
     
 
@@ -84,10 +98,10 @@ export const login = function (req, res) {
         process.env.JWT_SECRET,
         { expiresIn: '1h' })
 
-      return res.json({status: "200", token: json_token})
+      return res.status(200).json({status: "200", token: json_token, role: user.role})
     }
     else {
-      return res.json({ status: "422", error: 'Wrong email or password' })
+      return res.json({ status: "421", error: 'Wrong email or password' })
     }
   })
 }
@@ -110,6 +124,48 @@ export const decodeToken = function (req, res) {
       res.send({status: "200",token: decoded})
     }
   });
+}
+
+export const modifyAccountPassword = async (req, res, next) => {
+  console.log('PUT /Orders is commented!');
+ 
+      const customerEmail = req.body.email
+      console.log(customerEmail)
+
+      const checkExistingClient = await Client.find({email: customerEmail});
+    console.log(checkExistingClient)
+      if (!checkExistingClient || checkExistingClient.length == 0) {
+        res.json({status: "401", message: `client with email ${customerEmail} does not exist!`});
+      } else {
+          let randomPassword = Math.random().toString(36).slice(-8);
+          const updatedClient = await Client.findOneAndUpdate(
+            { email: customerEmail },
+            { password: randomPassword},
+            { new: true }
+          );
+
+
+          var mailOptions = {
+            from: 'aurelrist@gmail.com',
+            to: customerEmail,
+            subject: 'Account password   updated',
+            text: `The new password for the account is ${randomPassword}`
+          };
+
+          await transporter.sendMail(mailOptions, function(error, info){
+            if (error) {
+              console.log(error);
+            } else {
+              console.log('Email sent: ' + info.response);
+            }
+          });
+
+          if (updatedClient) {
+            res.json({status: "200", message: 'update1', data: updatedClient});
+          } else {
+            res.json({status: "400", message: 'update2', data: updatedClient});
+          }
+  }
 }
 
 
